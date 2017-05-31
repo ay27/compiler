@@ -8,11 +8,10 @@ def err(err_str):
         g.err = open('test.err', mode='w')
     g.err.write('%s\n' % err_str)
     print('ERROR: %s\n' % err_str)
-    exit(-1)
 
 
 def debug(dbg_str):
-    print('DEBUG: %s\n' % dbg_str)
+    print('DEBUG: %s' % dbg_str)
 
 
 def out_dyd(token, id):
@@ -33,6 +32,7 @@ def out_var(vname, vproc, vkind, vtype, vlen, vadr):
 def out_proc(pname, ptype, plev, fadr, ladr):
     if g.proc is None:
         g.proc = open('test.pro', mode='w')
-    out_str = '%s %s %d %d %d\n' % (pname, ptype, plev, fadr, ladr)
+        g.proc.write('pname    ptype    plev    fadr    ladr\n')
+    out_str = '%-8s %-8s %-8d %-8d %-8d\n' % (pname, ptype, plev, fadr, ladr)
     g.proc.write(out_str)
     debug(out_str)

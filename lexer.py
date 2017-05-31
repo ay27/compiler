@@ -1,4 +1,4 @@
-from io_lib import out_dyd, debug
+from io_lib import out_dyd, debug, err
 import table
 
 __author__ = 'ay27'
@@ -13,7 +13,7 @@ def parse_token(token):
     # check for const
     if token.isnumeric():
         return table.TOKEN_TABLE.get('const')
-    return None
+    return 0
 
 
 def is_operation(token):
@@ -50,6 +50,8 @@ def get_next_token(src_file):
                     out_dyd(token, parse_token(token))
                     yield token
                 token = ''
+            elif token == '' and ch.isdigit():
+                err('must not be number start')
             # 三种情况，一个是单词结束，一个是算符结束，一个是两个算符并排，如);
             elif is_word_end(token, ch) or is_operation_end(token, ch) or \
                     (is_operation(token) and is_operation(ch) and not is_operation('%s%s' % (token, ch))):

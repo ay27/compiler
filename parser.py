@@ -116,6 +116,7 @@ plevel = 0
 current_proc = None
 current_token = None
 current_const = None
+line_no = 1
 
 
 def is_var_exist(token, proc, kind, expected=False):
@@ -132,11 +133,13 @@ def is_var_exist(token, proc, kind, expected=False):
     for t in var_table:
         if t.vname == token and t.vproc == proc and t.vkind == kind:
             if not expected:
-                err('CheckVarExist : expected=False, but now is True  %s' % token)
+                return False
+                # err('CheckVarExist : expected=False, but now is True  %s' % token)
             else:
                 return True
     if expected:
-        err('CheckVarExist : expected=True, but now is False  %s' % token)
+        return False
+        # err('CheckVarExist : expected=True, but now is False  %s' % token)
     return False
 
 
@@ -153,7 +156,7 @@ def add_var(token, proc, kind, type, vlev):
     :return:
     """
     if is_var_exist(token, proc=proc, kind=kind, expected=False):
-        err('AddVar : can not define a variable in twice')
+        err('In line %d    AddVar : can not define a variable in twice' % line_no)
     var_table.append(Variable(token, proc, kind, type, vlev, len(var_table)))
     for i in range(0, proc.plev):
         if proc_table[i].plev < vlev or (proc_table[i].plev == vlev and proc_table[i].adr == proc.adr):
@@ -162,6 +165,7 @@ def add_var(token, proc, kind, type, vlev):
 
 def next_token(dyd_file):
     rep = None
+    global line_no
     for line in dyd_file:
         debug(line)
         if line is not None and len(line) > 0:
@@ -169,6 +173,7 @@ def next_token(dyd_file):
             if tmp == table.EOF:
                 return
             elif tmp is not None and tmp[0] == table.EOLN:
+                line_no += 1
                 continue
             elif len(tmp) == 2 and tmp[0]:
                 while rep is not None and rep:
@@ -203,11 +208,11 @@ def parse(dyd_file):
         out_var(var.vname, var.vproc, var.vkind, var.vtype, var.vlen, var.vadr)
     # 计算每个proc的fadr和ladr，然后输出
     for proc in proc_table:
-        for i in range(0, len(var_table)-1):
+        for i in range(0, len(var_table) - 1):
             if var_table[i].vproc.adr == proc.adr:
                 proc.fadr = i
                 break
-        for i in range(len(var_table)-1, 0, -1):
+        for i in range(len(var_table) - 1, 0, -1):
             if var_table[i].vproc.adr == proc.adr:
                 proc.ladr = i
                 break
@@ -224,14 +229,14 @@ def S(token_generator, pname, ptype):
         current_proc = Proc(pname, ptype, plevel)
     else:
         current_proc = Proc(pname, ptype, plevel)
-        var_table[len(var_table)-1].vproc = current_proc
+        var_table[len(var_table) - 1].vproc = current_proc
     proc_table.append(current_proc)
     # 同时，由于在函数内可以直接把自身函数名当成一个变量来使用，所以需要把函数名加入到变量表
     add_var(pname, current_proc, 0, 'integer', plevel)
 
     token, token_id = next(token_generator)
     if not match(token, token_id, table.BEGIN):
-        err('S : Not start with begin')
+        err('In line %d    S : Not start with begin' % line_no)
     H(token_generator)
     # token, token_id = next(token_generator)
     # if not match(token, token_id, table.SEMICOLON):
@@ -239,10 +244,10 @@ def S(token_generator, pname, ptype):
     E(token_generator)
     token, token_id = next(token_generator)
     if not match(token, token_id, table.END):
-        err('S : A end must follow E')
+        err('In Line %d    S : there must be an \'end\'' % line_no)
 
     plevel -= 1
-    current_proc = proc_table[plevel-1]
+    current_proc = proc_table[plevel - 1]
     return
 
 
@@ -250,11 +255,11 @@ def S(token_generator, pname, ptype):
 def H(token_generator):
     token, token_id = next(token_generator)
     if not match(token, token_id, table.INTEGER):
-        err('H : can not match integer')
+        err('In Line %d   H : can not match integer' % line_no)
     V(token_generator)
     token, token_id = next(token_generator)
     if not match(token, token_id, table.SEMICOLON):
-        err('H : can not match ;')
+        err('In Line %d   H : can not match ;' % line_no)
     _H(token_generator)
     return
 
@@ -270,7 +275,7 @@ def _H(token_generator):
     V(token_generator)
     token, token_id = next(token_generator)
     if not match(token, token_id, table.SEMICOLON):
-        err('H : can not match ;')
+        err('In Line %d    H : can not match ;' % line_no)
     _H(token_generator)
 
 
@@ -295,17 +300,17 @@ def V(token_generator):
     func_name = current_token
     token, token_id = next(token_generator)
     if not match(token, token_id, table.LEFT_BRACKET):
-        err('V : can not match (')
+        err('In line %d    V : can not match (' % line_no)
     M(token_generator)
     # 由于current_proc尚未生成，先赋值为当前proc，在进入函数时需要重新设置
-    add_var(current_token, current_proc, 1, 'integer', plevel+1)
+    add_var(current_token, current_proc, 1, 'integer', plevel + 1)
 
     token, token_id = next(token_generator)
     if not match(token, token_id, table.RIGHT_BRACKET):
-        err('V : can not match )')
+        err('In Line %d    V : can not match )' % line_no)
     token, token_id = next(token_generator)
     if not match(token, token_id, table.SEMICOLON):
-        err('V : can not match ;')
+        err('In Line %d    V : can not match ;' % line_no)
 
     S(token_generator, func_name, 'integer')
 
@@ -313,7 +318,7 @@ def V(token_generator):
 # 6.  D->GD'
 def D(token_generator):
     if not G(token_generator):
-        err('D : can not match G')
+        err('In Line %d    D : match %s error' % (line_no, current_token))
     _D(token_generator)
     return
 
@@ -375,31 +380,33 @@ def _E(token_generator):
 # 13. B->read(D)|write(D)|if U then B else B|Z
 def B(token_generator):
     token, token_id = token_generator.send(True)
-    func_is_read = match(token, token_id, table.READ)
-    if func_is_read or match(token, token_id, table.WRITE):
+    # func_is_read = match(token, token_id, table.READ)
+    if match(token, token_id, table.READ) or match(token, token_id, table.WRITE):
         # 成功，冲刷
         next(token_generator)
         token, token_id = next(token_generator)
         if not match(token, token_id, table.LEFT_BRACKET):
-            err('B : can not match (')
+            err('In Line %d    B : can not match (' % line_no)
         D(token_generator)
-        if func_is_read:
-            add_var(current_token, current_proc, 0, 'integer', plevel)
+        if not is_var_exist(current_token, current_proc, 0, True):
+            err('In Line %d    B : can not find token %s' % (line_no, current_token))
+        # if func_is_read:
+        # add_var(current_token, current_proc, 0, 'integer', plevel)
 
         token, token_id = next(token_generator)
         if not match(token, token_id, table.RIGHT_BRACKET):
-            err('B : can not match )')
+            err('In Line %d    B : can not match )' % line_no)
     elif match(token, token_id, table.IF):
         # 成功，冲刷
         next(token_generator)
         U(token_generator)
         token, token_id = next(token_generator)
         if not match(token, token_id, table.THEN):
-            err('B : can not match then')
+            err('In Line %d    B : can not match then' % line_no)
         B(token_generator)
         token, token_id = next(token_generator)
         if not match(token, token_id, table.ELSE):
-            err('B : can not match else')
+            err('In Line %d    B : can not match else' % line_no)
         B(token_generator)
     else:
         Z(token_generator)
@@ -409,10 +416,10 @@ def B(token_generator):
 def Z(token_generator):
     D(token_generator)
     if not is_var_exist(current_token, current_proc, 0, True):
-        err('Z : D is not defined')
+        err('In Line %d     Z : token %s not defined' % (line_no, current_token))
     token, token_id = next(token_generator)
     if not match(token, token_id, table.ASSIGN):
-        err('Z : can not match :=')
+        err('In Line %d    Z : can not match := %s' % (line_no, token))
     K(token_generator)
 
 
@@ -465,7 +472,7 @@ def Y(token_generator):
     if not match(token, token_id, table.LEFT_BRACKET):
         # 不是函数调用
         if not is_var_exist(current_token, current_proc, 0, True):
-            err('Y : G is not defined')
+            err('In Line %d    Y : %s is not defined' % (line_no, current_token))
         _D(token_generator)
         return
 
@@ -477,21 +484,19 @@ def Y(token_generator):
             flag = True
             break
     if not flag:
-        err('P : function not defined')
+        err('In Line %d    P : function not defined' % line_no)
     # 冲刷
     next(token_generator)
     K(token_generator)
     token, token_id = next(token_generator)
     if not match(token, token_id, table.RIGHT_BRACKET):
-        err('P : can not match )')
-
-
+        err('In Line %d    P : can not match )' % line_no)
 
 
 # 20. Q->NQ'
 def Q(token_generator):
     if not N(token_generator):
-        err('Q : can not match N')
+        err('In Line %d    Q : match number error %s' % (line_no, current_token))
     _Q(token_generator)
 
 
@@ -501,7 +506,6 @@ def _Q(token_generator):
         _Q(token_generator)
     else:
         return
-
 
 
 # 23. U->KOK
@@ -515,6 +519,6 @@ def U(token_generator):
 def O(token_generator):
     token, token_id = next(token_generator)
     if not match(token, token_id, None):
-        err('O : can not match %s' % token)
+        err('In Line %d    O : can not match %s' % (line_no, token))
 
 

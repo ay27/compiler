@@ -7,7 +7,7 @@ __author__ = 'ay27'
 
 from table import init_token_table
 
-if __name__ is '__main__':
+if __name__ == '__main__':
     try:
         g.pas_src = open(g.src_file_name)
     except OSError:
